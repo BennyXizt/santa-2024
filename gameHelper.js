@@ -84,9 +84,7 @@ class GameHelper {
                 this._entities.push({
                     entity: entity,
                     running_images: running_images,
-                    // running_counter: 0,
                     jumping_images: jumping_images,
-                    // jumping_counter: 0
                 });
             });
         }
@@ -96,9 +94,7 @@ class GameHelper {
             this._entities.push({
                 entity: entity,
                 running_images: null,
-                // running_counter: null,
                 jumping_images: null,
-                // jumping_counter: null
             });
         }
     }
@@ -123,7 +119,6 @@ class GameHelper {
     jumpingEntity(entities, ctx, sprite_delay) {
         const entity = entities.entity;
         if (entity instanceof Player) {
-            console.log("here");
             let [sprite, x, y, width, height] = entity.actionJump(this._canvas, entities.jumping_images, sprite_delay);
             ctx === null || ctx === void 0 ? void 0 : ctx.drawImage(sprite, x, y, width, height);
             return true;

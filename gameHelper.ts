@@ -108,11 +108,7 @@ class GameHelper {
                     this._entities.push({
                         entity: entity,
                         running_images: running_images,
-                        // running_counter: 0,
                         jumping_images: jumping_images,
-                        // jumping_counter: 0
-                        
-                        
                     })
                 })
     }
@@ -123,9 +119,7 @@ class GameHelper {
         this._entities.push({
             entity: entity,
             running_images: null,
-            // running_counter: null,
             jumping_images: null,
-            // jumping_counter: null
         })
     }
 
@@ -133,7 +127,6 @@ class GameHelper {
   }
 
   private runningMap(ctx: CanvasRenderingContext2D | null):boolean {
-
     const scaleX:number = this._canvas!.width / this._background!.width
     const scaleY:number = this._canvas!.height / this._background!.height
     const scale:number = Math.max(scaleX, scaleY);
@@ -162,8 +155,6 @@ class GameHelper {
   private jumpingEntity(entities: IEntities, ctx: CanvasRenderingContext2D | null, sprite_delay: number) {
     const entity = entities.entity
     if(entity instanceof Player) {
-        console.log("here");
-        
         let [sprite, x, y, width, height] =  entity.actionJump(this._canvas!, entities.jumping_images!, sprite_delay)
 
         ctx?.drawImage(sprite, x, y, width, height);
@@ -176,7 +167,6 @@ class GameHelper {
     document.addEventListener("keyup", (e) => {
 
         if(e.key.includes("w") || e.key.includes(" ")) {
-            
             for(let i = 0; i < this._entities.length; i++) {
                 const entity = this._entities[i].entity
 
@@ -198,9 +188,7 @@ class GameHelper {
                 
             }
             return
-            
         }
-    
     })
 
     let sprite_delay:number = 0
@@ -257,8 +245,6 @@ class GameHelper {
             }
         } 
     }, 1000 / GAME_FPS)
-
-    
   }
 }
 
