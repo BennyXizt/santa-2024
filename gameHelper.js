@@ -124,26 +124,31 @@ class GameHelper {
             return true;
         }
     }
+    event_jump() {
+        for (let i = 0; i < this._entities.length; i++) {
+            const entity = this._entities[i].entity;
+            if (entity instanceof Player) {
+                if (!IS_DEBUGGING) {
+                    if (entity.getCurrentAnimation().startsWith("jump_"))
+                        return;
+                    entity.setCurrentAnimation("jump_up");
+                }
+                else {
+                    if (DEBUG_CURRENT_ANIMATION.startsWith("jump_"))
+                        return;
+                    DEBUG_CURRENT_ANIMATION = "jump_up";
+                }
+            }
+        }
+    }
     gameStart() {
         document.addEventListener("keyup", (e) => {
             if (e.key.includes("w") || e.key.includes(" ")) {
-                for (let i = 0; i < this._entities.length; i++) {
-                    const entity = this._entities[i].entity;
-                    if (entity instanceof Player) {
-                        if (!IS_DEBUGGING) {
-                            if (entity.getCurrentAnimation().startsWith("jump_"))
-                                return;
-                            entity.setCurrentAnimation("jump_up");
-                        }
-                        else {
-                            if (DEBUG_CURRENT_ANIMATION.startsWith("jump_"))
-                                return;
-                            DEBUG_CURRENT_ANIMATION = "jump_up";
-                        }
-                    }
-                }
-                return;
+                this.event_jump();
             }
+        });
+        document.addEventListener('touchstart', (e) => {
+            this.event_jump();
         });
         let sprite_delay = 0;
         GAME_INTERVAL = setInterval(() => {
