@@ -229,8 +229,8 @@ class Entity {
     }
     getCurrentAnimation() { return this._currentAnimation; }
     setCurrentAnimation(name) { this._currentAnimation = name; }
-    getRunningAnimationsCount() { return this._animationsPath.run[1]; }
-    getJumpingAnimationsCount() { return this._animationsPath.jump[1]; }
+    getRunningAnimationsCount() { var _a, _b; return (_b = (_a = this._animationsPath) === null || _a === void 0 ? void 0 : _a.run) === null || _b === void 0 ? void 0 : _b[1]; }
+    getJumpingAnimationsCount() { var _a, _b; return (_b = (_a = this._animationsPath) === null || _a === void 0 ? void 0 : _a.jump) === null || _b === void 0 ? void 0 : _b[1]; }
     actionRun(canvas, frames, delay) {
         let x = this._x;
         let y = this._y;
@@ -286,7 +286,7 @@ class Player extends Entity {
 }
 const gameHelper = new GameHelper();
 const player = new Player({ x: 150, y: 470 }, { run: ["./img/santa/", 6], jump: ["./img/santa-jump/", 4] }, "p_santa");
-const enemy = new Entity({ x: 5, y: 470 }, { run: ["./img/grinch/", 6], jump: [null, null] }, "e_grinch");
+const enemy = new Entity({ x: 5, y: 470 }, { run: ["./img/grinch/", 6] }, "e_grinch");
 gameHelper.loadMap()
     .then(() => gameHelper.loadEntity(player))
     .then(() => gameHelper.loadEntity(enemy));

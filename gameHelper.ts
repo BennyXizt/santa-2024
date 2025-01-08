@@ -254,8 +254,8 @@ class GameHelper {
 }
 
 interface IAnimationsPath {
-    run: [string | null, number | null],
-    jump: [string | null, number | null]
+    run?: [string | null, number | null],
+    jump?: [string | null, number | null]
 }
 
 class Entity {
@@ -287,8 +287,8 @@ class Entity {
     }
     getCurrentAnimation() { return this._currentAnimation}
     setCurrentAnimation(name:string) { this._currentAnimation = name }
-    getRunningAnimationsCount() {return this._animationsPath.run[1]}
-    getJumpingAnimationsCount() {return this._animationsPath.jump[1]}
+    getRunningAnimationsCount() {return this._animationsPath?.run?.[1]}
+    getJumpingAnimationsCount() {return this._animationsPath?.jump?.[1]}
     actionRun(canvas: HTMLCanvasElement, frames: HTMLImageElement[], delay: number): [sprite: HTMLImageElement, x:number, y:number, width:number, height: number] {
         let x = this._x
         let y = this._y
@@ -370,7 +370,7 @@ class Player extends Entity {
 
 const gameHelper = new GameHelper();
 const player = new Player({ x: 150, y: 470}, {run: ["./img/santa/", 6], jump: ["./img/santa-jump/", 4]}, "p_santa");
-const enemy = new Entity({ x: 5, y: 470}, {run: ["./img/grinch/", 6], jump: [null, null]}, "e_grinch");
+const enemy = new Entity({ x: 5, y: 470}, {run: ["./img/grinch/", 6] }, "e_grinch");
 
 gameHelper.loadMap()
     .then(() => gameHelper.loadEntity(player))
