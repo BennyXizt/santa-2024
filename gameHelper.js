@@ -3,7 +3,7 @@ const CANVAS_ID = "gameCanvas";
 const IS_DEBUGGING = false;
 let DEBUG_CURRENT_ANIMATION = "run";
 const GAME_FPS = 130;
-const GAME_JUMP_RANGE = 50;
+const GAME_JUMP_RANGE = 70;
 const GAME_GENERATING_ENTITIES = 30;
 let GAME_INTERVAL;
 class GameHelper {
@@ -228,7 +228,6 @@ class GameHelper {
         document.addEventListener('touchstart', (e) => {
             this.event_jump();
         });
-        console.log("ge");
         let sprite_delay = 0;
         GAME_INTERVAL = setInterval(() => {
             ctx === null || ctx === void 0 ? void 0 : ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
@@ -321,13 +320,13 @@ class Player extends AnimatedEntity {
         if (this._currentAnimation.includes("jump_up")) {
             console.log(`y: ${this._changedCoord.y} - originY: ${this._origin.y} - range: ${GAME_JUMP_RANGE}`);
             if (this._changedCoord.y >= this._origin.y - GAME_JUMP_RANGE)
-                this._changedCoord.y--;
+                this._changedCoord.y -= 2;
             else
                 this._currentAnimation = "jump_down";
         }
         else if (this._currentAnimation.includes("jump_down")) {
             if (this._changedCoord.y < this._origin.y)
-                this._changedCoord.y++;
+                this._changedCoord.y += 2;
             else
                 this._currentAnimation = "run";
         }
