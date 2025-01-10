@@ -4,6 +4,7 @@ const IS_DEBUGGING = false;
 let DEBUG_CURRENT_ANIMATION = "run";
 const GAME_FPS = 130;
 const GAME_JUMP_RANGE = 50;
+const GAME_GENERATING_ENTITIES = 30;
 let GAME_INTERVAL;
 class GameHelper {
     constructor(_canvas, _body, _background = new Image(), _backgroundX = 0, _entities = []) {
@@ -57,34 +58,54 @@ class GameHelper {
             const p_images = [];
             const running_images = [];
             const jumping_images = [];
-            for (const [animations_key, [animations_path, animations_frames]] of Object.entries(entity.getAnimationsPath())) {
-                if (!animations_path || !animations_frames)
-                    continue;
-                const animations_name = animations_path.split("/")[2];
-                const sprite_path = `${animations_path}${animations_name}`;
-                for (let i = 0; i < animations_frames; i++) {
-                    p_images.push(new Promise((resolve, reject) => {
-                        const image = new Image();
-                        image.src = new URL(`${sprite_path}${i}.png`, window.location.href).toString();
-                        image.onload = () => {
-                            if (animations_key.includes("run") && i === 0)
-                                ctx === null || ctx === void 0 ? void 0 : ctx.drawImage(image, x, y, entity.getWidth(), entity.getHeight());
-                            if (animations_key.includes("run"))
-                                running_images.push(image);
-                            else if (animations_key.includes("jump"))
-                                jumping_images.push(image);
-                            resolve(image);
-                        };
-                        image.onerror = () => reject(new Error(`Failed to load image: ${sprite_path}${i}.png`));
-                    }));
+            let generating_sprite_images;
+            if (entity instanceof AnimatedEntity) {
+                for (const [animations_key, [animations_path, animations_frames]] of Object.entries(entity.getAnimationsPath())) {
+                    if (!animations_path || !animations_frames)
+                        continue;
+                    const animations_name = animations_path.split("/")[2];
+                    const sprite_path = `${animations_path}${animations_name}`;
+                    for (let i = 0; i < animations_frames; i++) {
+                        p_images.push(new Promise((resolve, reject) => {
+                            const image = new Image();
+                            image.src = new URL(`${sprite_path}${i}.png`, window.location.href).toString();
+                            image.onload = () => {
+                                if (animations_key.includes("run") && i === 0)
+                                    ctx === null || ctx === void 0 ? void 0 : ctx.drawImage(image, x, y, entity.getWidth(), entity.getHeight());
+                                if (animations_key.includes("run"))
+                                    running_images.push(image);
+                                else if (animations_key.includes("jump"))
+                                    jumping_images.push(image);
+                                resolve(image);
+                            };
+                            image.onerror = () => reject(new Error(`Failed to load image: ${sprite_path}${i}.png`));
+                        }));
+                    }
                 }
             }
-            Promise.all(p_images)
+            else if (entity.constructor.name === "Entity") {
+                p_images.push(new Promise((resolve, reject) => {
+                    const image = new Image();
+                    image.src = new URL(entity.getPath(), window.location.href).toString();
+                    image.onload = () => {
+                        generating_sprite_images = {
+                            image: image,
+                            x: 0,
+                            y: 0
+                        };
+                        resolve(image);
+                    };
+                    image.onerror = () => reject(new Error(`Failed to load image: ${entity.getPath()}`));
+                }));
+            }
+            return Promise.all(p_images)
                 .then(() => {
                 this._entities.push({
                     entity: entity,
                     running_images: running_images,
                     jumping_images: jumping_images,
+                    generating_sprite_images: generating_sprite_images,
+                    generated: []
                 });
             });
         }
@@ -93,9 +114,8 @@ class GameHelper {
             ctx.fillRect(x, y, entity.getWidth(), entity.getHeight());
             this._entities.push({
                 entity: entity,
-                running_images: null,
-                jumping_images: null,
             });
+            return Promise.resolve();
         }
     }
     runningMap(ctx) {
@@ -111,10 +131,13 @@ class GameHelper {
         return true;
     }
     runningEntity(entities, ctx, sprite_delay) {
-        const entity = entities.entity;
-        let [sprite, x, y, width, height] = entity.actionRun(this._canvas, entities.running_images, sprite_delay);
-        ctx === null || ctx === void 0 ? void 0 : ctx.drawImage(sprite, x, y, width, height);
-        return true;
+        if (entities.entity instanceof AnimatedEntity) {
+            const entity = entities.entity;
+            let [sprite, x, y, width, height] = entity.actionRun(this._canvas, entities.running_images, sprite_delay);
+            ctx === null || ctx === void 0 ? void 0 : ctx.drawImage(sprite, x, y, width, height);
+            return true;
+        }
+        return false;
     }
     jumpingEntity(entities, ctx, sprite_delay) {
         const entity = entities.entity;
@@ -122,6 +145,60 @@ class GameHelper {
             let [sprite, x, y, width, height] = entity.actionJump(this._canvas, entities.jumping_images, sprite_delay);
             ctx === null || ctx === void 0 ? void 0 : ctx.drawImage(sprite, x, y, width, height);
             return true;
+        }
+    }
+    animateEntities(ctx, sprite_delay) {
+        var _a, _b;
+        if (!IS_DEBUGGING) {
+            for (let i = 0; i < this._entities.length; i++) {
+                const entity = this._entities[i].entity;
+                if (entity instanceof AnimatedEntity) {
+                    if ((_a = entity.getCurrentAnimation()) === null || _a === void 0 ? void 0 : _a.includes("run"))
+                        this.runningEntity(this._entities[i], ctx, sprite_delay);
+                    else if ((_b = entity.getCurrentAnimation()) === null || _b === void 0 ? void 0 : _b.startsWith("jump_"))
+                        this.jumpingEntity(this._entities[i], ctx, sprite_delay);
+                }
+            }
+        }
+        else {
+            for (let i = 0; i < this._entities.length; i++) {
+                const entity = this._entities[i].entity;
+                let x = entity.getX() - 5;
+                let y = entity.getY();
+                if (entity instanceof Player) {
+                    if (DEBUG_CURRENT_ANIMATION.startsWith("jump_")) {
+                        if (DEBUG_CURRENT_ANIMATION.includes("jump_up")) {
+                            if (y >= entity.getOriginalCoord().y - GAME_JUMP_RANGE)
+                                entity.setY(y -= 1);
+                            else
+                                DEBUG_CURRENT_ANIMATION = "jump_down";
+                        }
+                        else {
+                            if (y < entity.getOriginalCoord().y)
+                                entity.setY(y += 1);
+                            else
+                                DEBUG_CURRENT_ANIMATION = "run";
+                        }
+                    }
+                    ctx.fillStyle = entity.getColor();
+                    ctx.fillRect(x, y, entity.getWidth(), entity.getHeight());
+                }
+                else {
+                    ctx.fillStyle = entity.getColor();
+                    ctx.fillRect(x, y, entity.getWidth(), entity.getHeight());
+                }
+            }
+        }
+    }
+    generating(ctx) {
+        for (let i = 0; i < this._entities.length; i++) {
+            const entity = this._entities[i].entity;
+            if (entity.constructor.name === "Entity") {
+                const image = this._entities[i].generating_sprite_images.image;
+                const x = this._canvas.width + entity.getX() - entity.getWidth() + this._backgroundX;
+                const y = entity.getY();
+                ctx === null || ctx === void 0 ? void 0 : ctx.drawImage(image, x, y, entity.getWidth(), entity.getHeight());
+            }
         }
     }
     event_jump() {
@@ -142,6 +219,7 @@ class GameHelper {
         }
     }
     gameStart() {
+        const ctx = this._canvas.getContext("2d");
         document.addEventListener("keyup", (e) => {
             if (e.key.includes("w") || e.key.includes(" ")) {
                 this.event_jump();
@@ -150,90 +228,62 @@ class GameHelper {
         document.addEventListener('touchstart', (e) => {
             this.event_jump();
         });
+        console.log("ge");
         let sprite_delay = 0;
         GAME_INTERVAL = setInterval(() => {
-            var _a, _b;
-            const ctx = this._canvas.getContext("2d");
             ctx === null || ctx === void 0 ? void 0 : ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
             this.runningMap(ctx);
-            if (!IS_DEBUGGING) {
-                for (let i = 0; i < this._entities.length; i++) {
-                    if ((_a = this._entities[i].entity.getCurrentAnimation()) === null || _a === void 0 ? void 0 : _a.includes("run"))
-                        this.runningEntity(this._entities[i], ctx, sprite_delay);
-                    else if ((_b = this._entities[i].entity.getCurrentAnimation()) === null || _b === void 0 ? void 0 : _b.startsWith("jump_"))
-                        this.jumpingEntity(this._entities[i], ctx, sprite_delay);
-                }
-                sprite_delay++;
-            }
-            else {
-                for (let i = 0; i < this._entities.length; i++) {
-                    const entity = this._entities[i].entity;
-                    let x = entity.getX() - 5;
-                    let y = entity.getY();
-                    if (entity instanceof Player) {
-                        if (DEBUG_CURRENT_ANIMATION.startsWith("jump_")) {
-                            if (DEBUG_CURRENT_ANIMATION.includes("jump_up")) {
-                                if (y >= entity.getOriginalCoord().y - GAME_JUMP_RANGE) {
-                                    y--;
-                                    entity.setY(y);
-                                }
-                                else
-                                    DEBUG_CURRENT_ANIMATION = "jump_down";
-                            }
-                            else {
-                                if (y < entity.getOriginalCoord().y) {
-                                    y++;
-                                    entity.setY(y);
-                                }
-                                else
-                                    DEBUG_CURRENT_ANIMATION = "run";
-                            }
-                        }
-                        ctx.fillStyle = entity.getColor();
-                        ctx.fillRect(x, y, entity.getWidth(), entity.getHeight());
-                    }
-                    else {
-                        ctx.fillStyle = entity.getColor();
-                        ctx.fillRect(x, y, entity.getWidth(), entity.getHeight());
-                    }
-                }
-            }
+            this.animateEntities(ctx, sprite_delay);
+            this.generating(ctx);
+            sprite_delay++;
         }, 1000 / GAME_FPS);
     }
 }
 class Entity {
-    constructor(_originCoord, _animationsPath = { run: [null, null], jump: [null, null] }, _id, _x = _originCoord.x, _y = _originCoord.y, _animationsCounters = { run: 0, jump: 0 }, _currentAnimation = "run", _width = 140, _height = 140) {
-        this._originCoord = _originCoord;
-        this._animationsPath = _animationsPath;
+    constructor(_id, _origin, _path, _width = 140, _height = 140) {
         this._id = _id;
-        this._x = _x;
-        this._y = _y;
-        this._animationsCounters = _animationsCounters;
-        this._currentAnimation = _currentAnimation;
+        this._origin = _origin;
+        this._path = _path;
         this._width = _width;
         this._height = _height;
     }
-    getAnimationsPath() { return this._animationsPath; }
     getId() { return this._id; }
-    getX() { return this._x; }
-    setX(value) { this._x = value; }
-    getY() { return this._y; }
-    setY(value) { this._y = value; }
+    getX() { return this._origin.x; }
+    setX(value) { this._origin.x = value; }
+    getY() { return this._origin.y; }
+    setY(value) { this._origin.y = value; }
     getWidth() { return this._width; }
     getHeight() { return this._height; }
+    getPath() { return this._path; }
     getColor() {
-        if (this._id.startsWith("p_"))
+        if (this instanceof Player)
             return "blue";
-        else
+        else if (this instanceof AnimatedEntity)
             return "red";
+        else
+            return "yellow";
     }
+}
+class AnimatedEntity extends Entity {
+    constructor(_id, _origin, _animationsPath = { run: [null, null], jump: [null, null] }, _animationsCounters = { run: 0, jump: 0 }, _currentAnimation = "run", _width = 140, _height = 140, _changedCoord = Object.assign({}, _origin)) {
+        super(_id, _origin, null, _width, _height);
+        this._animationsPath = _animationsPath;
+        this._animationsCounters = _animationsCounters;
+        this._currentAnimation = _currentAnimation;
+        this._changedCoord = _changedCoord;
+    }
+    getX() { return this._changedCoord.x; }
+    setX(value) { this._changedCoord.x = value; }
+    getY() { return this._changedCoord.y; }
+    setY(value) { this._changedCoord.y = value; }
+    getAnimationsPath() { return this._animationsPath; }
     getCurrentAnimation() { return this._currentAnimation; }
     setCurrentAnimation(name) { this._currentAnimation = name; }
     getRunningAnimationsCount() { var _a, _b; return (_b = (_a = this._animationsPath) === null || _a === void 0 ? void 0 : _a.run) === null || _b === void 0 ? void 0 : _b[1]; }
     getJumpingAnimationsCount() { var _a, _b; return (_b = (_a = this._animationsPath) === null || _a === void 0 ? void 0 : _a.jump) === null || _b === void 0 ? void 0 : _b[1]; }
     actionRun(canvas, frames, delay) {
-        let x = this._x;
-        let y = this._y;
+        let x = this._changedCoord.x;
+        let y = this._changedCoord.y;
         if (x + this._width > canvas.width)
             x = canvas.width - this._width;
         if (y + this._height > canvas.height)
@@ -248,14 +298,14 @@ class Entity {
         return [sprite, x, y, this._width, this._height];
     }
 }
-class Player extends Entity {
-    constructor(_originCoord, _animationsPath, _id, _x = _originCoord.x, _y = _originCoord.y, _animationsCounters = { run: 0, jump: 0 }, _currentAnimation = "run", _width = 140, _height = 140) {
-        super(_originCoord, _animationsPath, _id, _x, _y, _animationsCounters, _currentAnimation, _width, _height);
+class Player extends AnimatedEntity {
+    constructor(_id, _origin, _animationsPath, _animationsCounters = { run: 0, jump: 0 }, _currentAnimation = "run", _width = 140, _height = 140, _changedCoord = Object.assign({}, _origin)) {
+        super(_id, _origin, _animationsPath, _animationsCounters, _currentAnimation, _width, _height, _changedCoord);
     }
-    getOriginalCoord() { return this._originCoord; }
+    getOriginalCoord() { return this._origin; }
     actionJump(canvas, frames, delay) {
-        let x = this._x;
-        let y = this._y;
+        let x = this._changedCoord.x;
+        let y = this._changedCoord.y;
         if (x + this._width > canvas.width)
             x = canvas.width - this._width;
         if (y + this._height > canvas.height)
@@ -269,25 +319,31 @@ class Player extends Entity {
                 this._animationsCounters.jump++;
         }
         if (this._currentAnimation.includes("jump_up")) {
-            if (this._y >= this._originCoord.y - GAME_JUMP_RANGE)
-                this._y--;
+            console.log(`y: ${this._changedCoord.y} - originY: ${this._origin.y} - range: ${GAME_JUMP_RANGE}`);
+            if (this._changedCoord.y >= this._origin.y - GAME_JUMP_RANGE)
+                this._changedCoord.y--;
             else
                 this._currentAnimation = "jump_down";
         }
         else if (this._currentAnimation.includes("jump_down")) {
-            if (this._y < this._originCoord.y)
-                this._y++;
-            else {
+            if (this._changedCoord.y < this._origin.y)
+                this._changedCoord.y++;
+            else
                 this._currentAnimation = "run";
-            }
         }
         return [sprite, x, y, this._width, this._height];
     }
 }
 const gameHelper = new GameHelper();
-const player = new Player({ x: 150, y: 470 }, { run: ["./img/santa/", 6], jump: ["./img/santa-jump/", 4] }, "p_santa");
-const enemy = new Entity({ x: 5, y: 470 }, { run: ["./img/grinch/", 6] }, "e_grinch");
+const player = new Player("p_santa", { x: 150, y: 470 }, { run: ["./img/santa/", 6], jump: ["./img/santa-jump/", 4] });
+const enemy = new AnimatedEntity("e_grinch", { x: 5, y: 470 }, { run: ["./img/grinch/", 6] });
+const object = new Entity("o_object_1", { x: 5, y: 560 }, "./img/obstacles/A.png", 50, 50);
+const object2 = new Entity("o_object_2", { x: 550, y: 560 }, "./img/obstacles/B.png", 50, 50);
+const object3 = new Entity("o_object_3", { x: 955, y: 560 }, "./img/obstacles/A.png", 50, 50);
 gameHelper.loadMap()
     .then(() => gameHelper.loadEntity(player))
-    .then(() => gameHelper.loadEntity(enemy));
+    .then(() => gameHelper.loadEntity(enemy))
+    .then(() => gameHelper.loadEntity(object))
+    .then(() => gameHelper.loadEntity(object2))
+    .then(() => gameHelper.loadEntity(object3));
 gameHelper.gameStart();
