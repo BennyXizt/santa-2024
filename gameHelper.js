@@ -49,7 +49,12 @@ class GameHelper {
     }
     loadEntity(entity) {
         const ctx = this._canvas.getContext("2d");
-
+        let x = entity.getX();
+        let y = entity.getY();
+        if (x + entity.getWidth() > this._canvas.width)
+            x = this._canvas.width - entity.getWidth();
+        if (y + entity.getHeight() > this._canvas.height)
+            y = this._canvas.height - entity.getHeight();
         if (!IS_DEBUGGING) {
             const p_images = [];
             const running_images = [];
@@ -69,21 +74,18 @@ class GameHelper {
                                 const scaleX = this._canvas.width / this._background.width;
                                 const scaleY = this._canvas.height / this._background.height;
                                 const scale = Math.max(scaleX, scaleY);
-                                let x = entity.getX()
-                                let y = entity.getY()
-
-                                if(x === "adaptive") {
-                                    const bgW = this._background.width * scale
-                                    x = bgW - (entity.getWidth() + 20) 
-                                    entity.setX(x)
+                                let x = entity.getX();
+                                let y = entity.getY();
+                                if (x === "adaptive") {
+                                    const bgW = this._background.width * scale;
+                                    x = bgW - (entity.getWidth() + 20);
+                                    entity.setX(x);
                                 }
-                                
-                                if(y === "adaptive") {
-                                    const bgY = this._background.height * scale
-                                    y = bgY - (entity.getHeight() + 20) 
-                                    entity.setY(y)
+                                if (y === "adaptive") {
+                                    const bgY = this._background.height * scale;
+                                    y = bgY - (entity.getHeight() + 20);
+                                    entity.setY(y);
                                 }
-
                                 if (animations_key.includes("run") && i === 0)
                                     ctx === null || ctx === void 0 ? void 0 : ctx.drawImage(image, x, y, entity.getWidth(), entity.getHeight());
                                 if (animations_key.includes("run"))
@@ -220,23 +222,14 @@ class GameHelper {
             if (entity.constructor.name === "Entity") {
                 let x = this._canvas.width - entity.getWidth() + this._backgroundX;
                 let y = entity.getY();
-
                 const scaleX = this._canvas.width / this._background.width;
                 const scaleY = this._canvas.height / this._background.height;
                 const scale = Math.max(scaleX, scaleY);
-
-                if(x === "adaptive") {
-                    const bgW = this._background.width * scale
-                    x = bgW - (entity.getWidth() + 20) 
-                    entity.setX(x)
+                if (y === "adaptive") {
+                    const bgY = this._background.height * scale;
+                    y = bgY - (entity.getHeight() + 20);
+                    entity.setY(y);
                 }
-                
-                if(y === "adaptive") {
-                    const bgY = this._background.height * scale
-                    y = bgY - (entity.getHeight() + 20) 
-                    entity.setY(y)
-                }
-                
                 if (!IS_DEBUGGING) {
                     const image = this._entities[i].generating_sprite_images.image;
                     ctx === null || ctx === void 0 ? void 0 : ctx.drawImage(image, x, y, entity.getWidth(), entity.getHeight());
@@ -287,7 +280,7 @@ class GameHelper {
     }
 }
 class Entity {
-    constructor(_id, _origin = { x: number | "adaptive", y: number | "adaptive"}, _path, _width = 140, _height = 140) {
+    constructor(_id, _origin, _path, _width = 140, _height = 140) {
         this._id = _id;
         this._origin = _origin;
         this._path = _path;
@@ -312,16 +305,16 @@ class Entity {
     }
 }
 class AnimatedEntity extends Entity {
-    constructor(_id, _origin = { x: number | "adaptive", y: number | "adaptive"}, _animationsPath = { run: [null, null], jump: [null, null] }, _animationsCounters = { run: 0, jump: 0 }, _currentAnimation = "run", _width = 140, _height = 140, _changedCoord = Object.assign({}, _origin)) {
+    constructor(_id, _origin, _animationsPath = { run: [null, null], jump: [null, null] }, _animationsCounters = { run: 0, jump: 0 }, _currentAnimation = "run", _width = 140, _height = 140, _changedCoord = Object.assign({}, _origin)) {
         super(_id, _origin, null, _width, _height);
         this._animationsPath = _animationsPath;
         this._animationsCounters = _animationsCounters;
         this._currentAnimation = _currentAnimation;
         this._changedCoord = _changedCoord;
     }
-    getX() { return this._origin.x === "adaptive" ? this._origin.x : this._changedCoord.x }
-    setX(value) { this._origin.x === "adaptive" ? this._origin.x = value : this._changedCoord.x = value  }
-    getY() { return this._origin.y === "adaptive" ? this._origin.y : this._changedCoord.y }
+    getX() { return this._origin.x === "adaptive" ? this._origin.x : this._changedCoord.x; }
+    setX(value) { this._origin.x === "adaptive" ? this._origin.x = value : this._changedCoord.x = value; }
+    getY() { return this._origin.y === "adaptive" ? this._origin.y : this._changedCoord.y; }
     setY(value) { this._origin.y === "adaptive" ? this._origin.y = value : this._changedCoord.y = value; }
     getAnimationsPath() { return this._animationsPath; }
     getCurrentAnimation() { return this._currentAnimation; }
@@ -331,10 +324,6 @@ class AnimatedEntity extends Entity {
     actionRun(canvas, frames, delay) {
         let x = this._changedCoord.x;
         let y = this._changedCoord.y;
-        if (x + this._width > canvas.width)
-            x = canvas.width - this._width;
-        if (y + this._height > canvas.height)
-            y = canvas.height - this._height;
         const sprite = frames[this._animationsCounters.run];
         if (delay % (GAME_FPS / 10) == 0) {
             if (this._animationsCounters.run >= this.getRunningAnimationsCount() - 1)
@@ -346,17 +335,12 @@ class AnimatedEntity extends Entity {
     }
 }
 class Player extends AnimatedEntity {
-    constructor(_id, _origin = { x: number | "adaptive", y: number | "adaptive"}, _animationsPath, _animationsCounters = { run: 0, jump: 0 }, _currentAnimation = "run", _width = 140, _height = 140, _changedCoord = Object.assign({}, _origin)) {
+    constructor(_id, _origin, _animationsPath, _animationsCounters = { run: 0, jump: 0 }, _currentAnimation = "run", _width = 140, _height = 140, _changedCoord = Object.assign({}, _origin)) {
         super(_id, _origin, _animationsPath, _animationsCounters, _currentAnimation, _width, _height, _changedCoord);
     }
     getOriginalCoord() { return this._origin; }
     actionJump(canvas, frames, delay) {
-        let x = this._changedCoord.x;
         let y = this._changedCoord.y;
-        if (x + this._width > canvas.width)
-            x = canvas.width - this._width;
-        if (y + this._height > canvas.height)
-            y = canvas.height - this._height;
         const sprite = frames[this._animationsCounters.jump];
         if (delay % (GAME_FPS / 10) == 0) {
             if (this._animationsCounters.jump >= this.getJumpingAnimationsCount() - 1)
@@ -364,20 +348,20 @@ class Player extends AnimatedEntity {
             else
                 this._animationsCounters.jump++;
         }
-        
         if (this._currentAnimation.includes("jump_up")) {
-            if (this._changedCoord.y >= this._origin.y - GAME_JUMP_RANGE)
-                this._changedCoord.y -= GAME_JUMPING_SPEED;
+            if (y >= this._origin.y - GAME_JUMP_RANGE)
+                y -= GAME_JUMPING_SPEED;
             else
                 this._currentAnimation = "jump_down";
         }
         else if (this._currentAnimation.includes("jump_down")) {
-            if (this._changedCoord.y < this._origin.y)
-                this._changedCoord.y += GAME_JUMPING_SPEED;
+            if (y < this._origin.y)
+                y += GAME_JUMPING_SPEED;
             else
                 this._currentAnimation = "run";
         }
-        return [sprite, x, y, this._width, this._height];
+        this.setY(y);
+        return [sprite, this._changedCoord.x, y, this._width, this._height];
     }
     isColliding(entity) {
         const selfX = this._changedCoord.x;
@@ -403,3 +387,4 @@ gameHelper.loadMap()
     .then(() => gameHelper.loadEntity(enemy))
     .then(() => gameHelper.loadEntity(object));
 gameHelper.gameStart();
+window.addEventListener("resize", () => location.reload());

@@ -47,7 +47,6 @@ class GameHelper {
         return body
     })()
   }
-
   loadMap(): Promise<boolean> {
     return new Promise((resolve, reject) => {
         this._body!.append(this._canvas!)
@@ -71,8 +70,8 @@ class GameHelper {
   loadEntity(entity: Entity): Promise<void> {
     const ctx: CanvasRenderingContext2D | null = this._canvas!.getContext("2d");
 
-    let x:number = entity.getX()
-    let y:number = entity.getY();
+    let x:number = entity.getX() as number
+    let y:number = entity.getY() as number
 
     if (x + entity.getWidth() > this._canvas!.width) x = this._canvas!.width - entity.getWidth();
     if (y + entity.getHeight() > this._canvas!.height) y = this._canvas!.height - entity.getHeight();
@@ -99,8 +98,25 @@ class GameHelper {
                             const image: HTMLImageElement = new Image()
                             image.src = new URL(`${sprite_path}${i}.png`, window.location.href).toString();
                             image.onload = () => {
+                                const scaleX = this._canvas!.width / this._background.width;
+                                const scaleY = this._canvas!.height / this._background.height;
+                                const scale = Math.max(scaleX, scaleY);
+                                let x = entity.getX()
+                                let y = entity.getY()
+                                if(x === "adaptive") {
+                                    const bgW = this._background.width * scale
+                                    x = bgW - (entity.getWidth() + 20) 
+                                    entity.setX(x)
+                                }
+                                
+                                if(y === "adaptive") {
+                                    const bgY = this._background.height * scale
+                                    y = bgY - (entity.getHeight() + 20) 
+                                    entity.setY(y)
+                                }
+                                
                                 if(animations_key.includes("run") && i === 0)
-                                    ctx?.drawImage(image, x, y, entity.getWidth(), entity.getHeight());
+                                    ctx?.drawImage(image, x as number, y as number, entity.getWidth(), entity.getHeight());
     
                                 if(animations_key.includes("run"))
                                     running_images.push(image)
@@ -222,21 +238,21 @@ class GameHelper {
     else {
         for(let i = 0; i < this._entities.length; i++) {
             const entity = this._entities[i].entity
-            let x = entity.getX() - 5
-            let y = entity.getY();
+            let x = entity.getX() as number - 5
+            let y = entity.getY() as number
             
             const player = this._entities.find(e => e.entity instanceof Player)?.entity as Player
 
             if(entity instanceof Player) {
                 if(DEBUG_CURRENT_ANIMATION.startsWith("jump_")) {
                     if(DEBUG_CURRENT_ANIMATION.includes("jump_up")) {
-                        if(y >= entity.getOriginalCoord().y - GAME_JUMP_RANGE)
+                        if(y >= (entity.getOriginalCoord().y as number) - GAME_JUMP_RANGE)
                             entity.setY(y -= 1)
                         else
                             DEBUG_CURRENT_ANIMATION = "jump_down"
                     }
                     else {
-                        if(y < entity.getOriginalCoord().y)
+                        if(y < (entity.getOriginalCoord().y as number))
                             entity.setY(y += 1)
                         else
                             DEBUG_CURRENT_ANIMATION = "run"
@@ -265,16 +281,25 @@ class GameHelper {
     for(let i = 0; i < this._entities.length; i++) {
         const entity = this._entities[i].entity
         if(entity.constructor.name === "Entity") {
-            const x = this._canvas!.width - entity.getWidth() + this._backgroundX
-            const y = entity.getY()
+            let x = this._canvas!.width - entity.getWidth() + this._backgroundX;
+            let y = entity.getY()
+            const scaleX = this._canvas!.width / this._background.width;
+            const scaleY = this._canvas!.height / this._background.height;
+            const scale = Math.max(scaleX, scaleY);
+                
+            if(y === "adaptive") {
+                const bgY = this._background.height * scale
+                y = bgY - (entity.getHeight() + 20) 
+                entity.setY(y)
+            }
 
             if(!IS_DEBUGGING) {
                 const image = this._entities[i].generating_sprite_images!.image             
-                ctx?.drawImage(image, x, y, entity.getWidth(), entity.getHeight());         
+                ctx?.drawImage(image, x, y as number, entity.getWidth(), entity.getHeight());         
             }
             else {
                 ctx!.fillStyle = entity.getColor(); 
-                ctx!.fillRect(x, y, entity.getWidth(), entity.getHeight());
+                ctx!.fillRect(x, y as number, entity.getWidth(), entity.getHeight());
             }
             entity.setX(x)
         }
@@ -338,7 +363,7 @@ interface IAnimationsPath {
 class Entity {
     constructor(
         protected _id:string,
-        protected _origin: { x: number, y: number},
+        protected _origin: { x: number | string, y: number | string},
         private _path:string | null,
         protected _width:number = 140, 
         protected _height:number = 140,
@@ -365,34 +390,29 @@ class Entity {
 class AnimatedEntity extends Entity {
     constructor (
         _id:string,
-        _origin: { x: number, y: number},
+        _origin: { x: number | string, y: number | string},
         protected _animationsPath:IAnimationsPath = { run: [null, null], jump: [null, null]},
         protected _animationsCounters = { run: 0, jump: 0},
         protected _currentAnimation:string = "run",
         _width:number = 140, 
         _height:number = 140,
-        protected _changedCoord: { x: number, y: number} = { ..._origin },
+        protected _changedCoord: { x: number | string, y: number | string} = { ..._origin },
     ) {
         super(_id, _origin, null, _width, _height)
     }
 
-    getX() { return this._changedCoord.x}
-    setX(value: number) { this._changedCoord.x = value} 
-    getY() { return this._changedCoord.y}
-    setY(value: number) { this._changedCoord.y = value} 
+    getX() { return this._origin.x === "adaptive" ? this._origin.x : this._changedCoord.x }
+    setX(value: number) { this._origin.x === "adaptive" ? this._origin.x = value : this._changedCoord.x = value  }
+    getY() { return this._origin.y === "adaptive" ? this._origin.y : this._changedCoord.y }
+    setY(value: number) { this._origin.y === "adaptive" ? this._origin.y = value : this._changedCoord.y = value; }
     getAnimationsPath() { return this._animationsPath}
     getCurrentAnimation() { return this._currentAnimation}
     setCurrentAnimation(name:string) { this._currentAnimation = name }
     getRunningAnimationsCount() {return this._animationsPath?.run?.[1]}
     getJumpingAnimationsCount() {return this._animationsPath?.jump?.[1]}
     actionRun(canvas: HTMLCanvasElement, frames: HTMLImageElement[], delay: number): [sprite: HTMLImageElement, x:number, y:number, width:number, height: number] {
-        let x = this._changedCoord.x
-        let y = this._changedCoord.y
-
-        if (x + this._width > canvas.width) 
-            x = canvas.width - this._width;
-        if (y + this._height > canvas.height) 
-            y = canvas.height - this._height;
+        let x = this._changedCoord.x as number
+        let y = this._changedCoord.y as number
 
         const sprite: HTMLImageElement = frames[this._animationsCounters.run]
 
@@ -410,13 +430,13 @@ class AnimatedEntity extends Entity {
 class Player extends AnimatedEntity {
     constructor(
         _id:string,
-        _origin: { x: number, y: number},
+        _origin: { x: number | string, y: number | string},
         _animationsPath:IAnimationsPath, 
         _animationsCounters = { run: 0, jump: 0},
         _currentAnimation:string = "run",
         _width:number = 140, 
         _height:number = 140,
-        _changedCoord: { x: number, y: number} = { ..._origin },
+        _changedCoord: { x: number | string, y: number | string} = { ..._origin },
     ) {
         super(_id, _origin, _animationsPath, _animationsCounters, _currentAnimation, _width, _height, _changedCoord)
     }
@@ -424,13 +444,7 @@ class Player extends AnimatedEntity {
     getOriginalCoord() { return this._origin}
 
     actionJump(canvas: HTMLCanvasElement, frames: HTMLImageElement[], delay: number): [sprite: HTMLImageElement, x:number, y:number, width:number, height: number] {
-        let x = this._changedCoord.x
-        let y = this._changedCoord.y
-
-        if (x + this._width > canvas.width) 
-            x = canvas.width - this._width;
-        if (y + this._height > canvas.height) 
-            y = canvas.height - this._height;
+        let y = this._changedCoord.y as number
 
         const sprite: HTMLImageElement = frames[this._animationsCounters.jump]
         
@@ -443,27 +457,27 @@ class Player extends AnimatedEntity {
 
         if(this._currentAnimation!.includes("jump_up")) {
             
-            if(this._changedCoord.y >= this._origin.y - GAME_JUMP_RANGE)
-                this._changedCoord.y -= GAME_JUMPING_SPEED
+            if(y >= (this._origin.y as number) - GAME_JUMP_RANGE)
+                y -= GAME_JUMPING_SPEED
             else
                 this._currentAnimation = "jump_down"
         }
         else if(this._currentAnimation!.includes("jump_down")) {
-            if(this._changedCoord.y < this._origin.y)
-                this._changedCoord.y += GAME_JUMPING_SPEED
+            if(y < (this._origin.y as number))
+                y += GAME_JUMPING_SPEED
             else
                 this._currentAnimation = "run"
         }
-        
-        return [sprite, x, y, this._width, this._height]
+        this.setY(y)
+        return [sprite, this._changedCoord.x as number, y as number, this._width, this._height]
     }
     isColliding(entity: Entity) {
-        const selfX = this._changedCoord.x
-        const selfY = this._changedCoord.y
+        const selfX = this._changedCoord.x as number
+        const selfY = this._changedCoord.y as number
         const selfWidth = this._width
         const selfHeight = this._height
-        const targetX = entity.getX()
-        const targetY = entity.getY()
+        const targetX = entity.getX() as number
+        const targetY = entity.getY() as number
         const targetWidth = entity.getWidth()
         const targetHeight = entity.getHeight()
         
@@ -478,9 +492,9 @@ class Player extends AnimatedEntity {
 }
 
 const gameHelper = new GameHelper();
-const player = new Player("p_santa", { x: 150, y: 470}, {run: ["./img/santa/", 6], jump: ["./img/santa-jump/", 4]} );
-const enemy = new AnimatedEntity("e_grinch", { x: 5, y: 470}, {run: ["./img/grinch/", 6] } );
-const object = new Entity("o_object_1", { x: 5, y: 560}, "./img/obstacles/A.png", 50, 50);
+const player = new Player("p_santa", { x: 150, y: "adaptive" }, { run: ["./img/santa/", 6], jump: ["./img/santa-jump/", 4] });
+const enemy = new AnimatedEntity("e_grinch", { x: 5, y: "adaptive" }, { run: ["./img/grinch/", 6] });
+const object = new Entity("o_object_1", { x: 5, y: "adaptive" }, "./img/obstacles/A.png", 50, 50);
 
 gameHelper.loadMap()
     .then(() => gameHelper.loadEntity(player))
@@ -489,6 +503,8 @@ gameHelper.loadMap()
 
 
 gameHelper.gameStart()
+
+window.addEventListener("resize", () => location.reload() )
 
 
 
